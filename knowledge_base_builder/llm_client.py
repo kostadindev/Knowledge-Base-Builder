@@ -1,7 +1,10 @@
 import asyncio
+import logging
 from abc import ABC, abstractmethod
 from typing import Dict, Any
 import time
+
+logger = logging.getLogger(__name__)
 
 class LLMClient(ABC):
     """Abstract base class for LLM clients."""
@@ -30,5 +33,5 @@ class LLMClient(ABC):
         start_time = time.time()
         result = asyncio.get_event_loop().run_until_complete(self.run_async(prompt))
         end_time = time.time()
-        print(f"    ⏱️ {self.__class__.__name__} API call (sync): {end_time - start_time:.2f} seconds")
+        logger.debug(f"{self.__class__.__name__} API call (sync): {end_time - start_time:.2f} seconds")
         return result 

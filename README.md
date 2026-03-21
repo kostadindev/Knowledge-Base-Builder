@@ -1,35 +1,26 @@
-# 🧠 Multi-Source Knowledge Base Builder for LLMs
+# Knowledge Base Builder
 
-A robust Python package designed to transform diverse content sources into a structured and comprehensive Markdown knowledge base optimized for large language models (LLMs). Efficiently ingest web content (HTML pages, sitemaps, XML), documents (PDFs, DOCXs, spreadsheets, Markdown, plaintext), and GitHub repositories, then process and merge them seamlessly using LLMs.
+A Python package that transforms diverse content sources into structured Markdown knowledge bases using large language models. Ingest web pages, PDFs, spreadsheets, GitHub repositories, and sitemaps, then consolidate them into a single organized document.
 
 Built to power:
-- Web-crawlable context files (`/llms.txt`)
-- Retrieval-Augmented Generation (**RAG**) systems
-- Vector databases preprocessing
-- Custom chatbots and knowledge applications
+- Web-crawlable LLM context files (`/llms.txt`)
+- Retrieval-Augmented Generation (RAG) preprocessing
+- Vector database ingestion pipelines
+- Domain-specific chatbots and assistants
 
-## ✨ Features
-
-- 📥 **Unified Source Ingestion** – Seamlessly handle local and remote files, websites, and GitHub repositories.
-- 🧹 **Structured Text Extraction** – Cleanly convert various document formats into Markdown.
-- 🌐 **Website Crawling** – Extract and summarize content from HTML pages and sitemaps.
-- 📚 **GitHub Integration** – Automatically retrieve and process Markdown content from repositories.
-- 🤖 **Advanced LLM Summarization** – Employ leading-edge models (Gemini Flash 2.0, GPT-4o, Claude 3.7 Sonnet) for precise and readable summaries.
-- 🔗 **Efficient Document Merging** – Merge multiple knowledge bases using a parallel preprocessing step followed by a single optimized merging step.
-- ⚙️ **Concurrency Control** – Smart throttling with semaphore-based concurrency ensures optimal use of resources and stable API usage.
-- 🚀 **Performance** – Optimized algorithm significantly reduces processing time, ensures predictable memory usage, and minimizes API calls.
+[![PyPI](https://img.shields.io/pypi/v/knowledge-base-builder)](https://pypi.org/project/knowledge-base-builder/)
+[![Tests](https://github.com/kostadindev/knowledge-base-builder/actions/workflows/tests.yml/badge.svg)](https://github.com/kostadindev/knowledge-base-builder/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
-## 🚀 Installation
-
-### Install from PyPI
+## Installation
 
 ```bash
 pip install knowledge-base-builder
 ```
 
-### Install from Source
+Or install from source for development:
 
 ```bash
 git clone https://github.com/kostadindev/knowledge-base-builder.git
@@ -39,84 +30,67 @@ pip install -e .
 
 ---
 
-## 🚀 Quickstart
+## Quickstart
 
-### 1. Set up your `.env` file
+### 1. Set up your API key
 
-Create a `.env` file in your project directory with the following variables (add the API keys for the models you intend to use):
+Create a `.env` file with at least one LLM provider key:
 
 ```env
-
 # You need only one of the following
-GOOGLE_API_KEY=your_google_api_key_here
-OPENAI_API_KEY=your_openai_api_key_here
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
+GOOGLE_API_KEY=your_key_here      # Free at https://aistudio.google.com/app/apikey
+OPENAI_API_KEY=your_key_here
+ANTHROPIC_API_KEY=your_key_here
 
-# Optional if you want to include Github repositories with a higher rate limit
-GITHUB_API_KEY=your_github_api_key_here 
+# Optional: increases GitHub API rate limit from 60 to 5000 requests/hour
+GITHUB_API_KEY=your_token_here
 ```
 
-### 2. Use as a Python Package
+### 2. Build a knowledge base
 
 ```python
 import os
 from dotenv import load_dotenv
 from knowledge_base_builder import KBBuilder
 
-# Load environment variables
 load_dotenv()
 
-# API and model configuration | You need only one of the below
 config = {
-    'GOOGLE_API_KEY': os.getenv("GOOGLE_API_KEY"),     # For Gemini | Get Free API Key at https://aistudio.google.com/app/apikey
-    'OPENAI_API_KEY': os.getenv("OPENAI_API_KEY"),     # For GPT-4o
-    'ANTHROPIC_API_KEY': os.getenv("ANTHROPIC_API_KEY"), # For Claude
+    'OPENAI_API_KEY': os.getenv("OPENAI_API_KEY"),
 }
 
-# Source documents - unified approach
-    sources = {
-        # Unified files list - automatically detects and processes each file type
-        'files': [
-            # PDF documents - remote
-            "https://kostadindev.github.io/static/documents/cv.pdf",
-            "https://kostadindev.github.io/static/documents/sbu_transcript.pdf",
-            # Local file path (no need for file:/// prefix)
-            "C:/Users/kosta/OneDrive/Desktop/MS Application Materials/emf-ellipse-publication.pdf",
-            
-            # Web pages
-            "https://kostadindev.github.io/index.html",
-            "https://kostadindev.github.io/projects.html",
-            
-            # Add other file types as needed
-            # "https://example.com/data.csv",
-            # "path/to/local/document.docx",  # Relative local path example
-            # "https://example.com/api-docs.json",
-        ],
-        
-        # Process all pages from a sitemap
-        'sitemap_url': "https://kostadindev.github.io/sitemap.xml",
-        
-        # GitHub repositories to process (format: username/repo or full URL)
-        'github_repositories': [
-            "https://github.com/kostadindev/Knowledge-Base-Builder",
-            "https://github.com/kostadindev/GONEXT",
-            "https://github.com/kostadindev/GONEXT-ML",
-            "https://github.com/kostadindev/meta-me",
-            "https://github.com/kostadindev/Recursive-QA",
-            "https://github.com/kostadindev/deep-gestures",
-            "https://github.com/kostadindev/emf-ellipse"
-        ]
-    }
-# Create KB builder
-kbb = KBBuilder(config)
+sources = {
+    'files': [
+        "https://example.com/resume.pdf",
+        "https://example.com/index.html",
+        "path/to/local/document.docx",
+    ],
+    'sitemap_url': "https://example.com/sitemap.xml",
+    'github_repositories': [
+        "username/repo",
+        "https://github.com/username/another-repo",
+    ],
+}
 
-# Build knowledge base
-kbb.build(sources=sources, output_file="final_knowledge_base.md")
+kbb = KBBuilder(config)
+kbb.build(sources=sources, output_file="knowledge_base.md")
+```
+
+### 3. Or use the CLI
+
+```bash
+knowledge-base-builder \
+  --openai-api-key $OPENAI_API_KEY \
+  -f https://example.com/resume.pdf \
+  -f https://example.com/index.html \
+  -m https://example.com/sitemap.xml \
+  -g username/repo \
+  -o knowledge_base.md
 ```
 
 ---
 
-## 🔧 Supported Sources
+## Supported Sources
 
 | Source Type | Description | Formats |
 |-------------|-------------|---------|
@@ -126,251 +100,311 @@ kbb.build(sources=sources, output_file="final_knowledge_base.md")
 | Websites | Live web pages | Any URL or sitemap |
 | GitHub | Repository content | Markdown files from public repos |
 
----
-
-## 🧠 LLM Providers
-
-| Provider | Models | Features |
-|----------|--------|----------|
-| Google Gemini | gemini-2.0-flash (default) | Free to try, Fast, large context window cost-effective summaries |
-| OpenAI | gpt-4o (default) | High-quality summaries, strong reasoning |
-| Anthropic | claude-3-7-sonnet (default) | High-quality summaries, excellent formatting |
-
-> **Recommended Provider: Google Gemini**
-> 
-> Google Gemini is the recommended provider as a free development API key can be obtained. Additionally, it is fast, has a large context window, and performs well on benchmarks. Get your free API key at [Google AI Studio](https://aistudio.google.com/app/apikey).
+All source types can be mixed in a single `build()` call. Duplicate URLs are automatically detected and skipped.
 
 ---
 
-## 📥 Output Example
+## LLM Providers
 
-```markdown
-# Resume Summary
+| Provider | Default Model | Notes |
+|----------|--------------|-------|
+| Google Gemini | `gemini-2.0-flash` | Free tier available, large context window |
+| OpenAI | `gpt-4o` | High-quality summaries |
+| Anthropic | `claude-3-7-sonnet` | Excellent formatting |
 
-## Education
-- B.S. in Computer Science from XYZ University
-
-## Experience
-- Software Engineer at ABC Corp
-- Developed NLP-based document parsers...
-
----
-
-# Website Summary
-
-## Project Pages
-- **Project Alpha**: A machine learning system for ...
-- **Blog Post**: How to use Gemini with LangChain ...
-```
-
----
-
-## 🔍 Applications
-
-
-### Web Crawlable LLM Context Enhancement
-- **/llms.txt**: Generate a compact, web-crawlable context file (typically 10-20KB) that allows LLMs to access your personal or organizational information during web searches.
-- **/llms-full.txt**: Create an expanded knowledge file (50-100KB) with comprehensive details about your work, expertise, and content that search-powered LLMs can index.
-- **Web Context Sources**: Enable web search LLMs like Perplexity, ChatGPT, Claude, and Gemini to discover and reference your structured information during user queries.
-
-### RAG Applications
-- **Vector Database Preprocessing**: Generate clean, structured content before embedding into vector stores like Pinecone, Chroma, or Weaviate, improving retrieval quality.
-- **Single-Context LLM Applications**: Provide a comprehensive knowledge base that fits within a single LLM context window (up to 128K tokens) for domain-specific assistants.
-- **Hybrid RAG Systems**: Combine the full knowledge base with selective vector retrieval for specialized question answering systems with reduced hallucination.
-
-### Summarization
-- **Website Summarization**: Process entire websites via sitemap URLs
-- **GitHub Summarization**: Generate summaries of GitHub repositories or entire user profiles
-- **Document Summarization**: Combine multiple documents into a unified summary
+The provider is auto-selected based on which API key is present (priority: Gemini > OpenAI > Anthropic). To override the model or temperature:
 
 ```python
-sources = {
-    'sitemap_url': "https://kostadindev.github.io/sitemap.xml",  # Summarize entire website
-    'github_username': "kostadindev",  # Summarize all repos for a user
-    'files': ["document1.pdf", "document2.docx"]  # Summarize documents
+config = {
+    'OPENAI_API_KEY': os.getenv("OPENAI_API_KEY"),
+    'OPENAI_MODEL': 'gpt-4o-mini',
+    'OPENAI_TEMPERATURE': 0.3,
+    'OPENAI_MAX_CONCURRENCY': 4,
 }
 ```
 
-### Personal Knowledge Management
-- **Professional Portfolio**: Create a comprehensive knowledge base integrating your resume, publications, projects, and online presence into a single searchable document.
-- **Academic Research**: Compile research papers, conference proceedings, and citations into a structured knowledge base for literature reviews or thesis preparation.
-- **Technical Documentation**: Consolidate documentation across multiple GitHub repositories, technical blogs, and API references into a unified technical manual.
-
-### Enterprise Use Cases
-- **Company Knowledge Base**: Consolidate internal documentation, product specifications, and team information into an easily updatable central resource.
-- **Customer Support**: Transform support tickets, FAQs, and product manuals into a comprehensive knowledge base for support agents or automated systems.
-- **Competitive Intelligence**: Build a structured repository of competitor information from various public sources, updated periodically with the latest data.
-- **Candidate Evaluation**: Generate comprehensive profiles of job candidates by compiling their GitHub contributions, research papers, portfolio, and online presence.
-- **Onboarding Acceleration**: Create personalized knowledge bases for new employees containing company policies, codebase documentation, and team information.
-
----
-## 🌲 Algorithm
-
-The knowledge base builder uses a streamlined three-step approach for efficient processing:
-
-1. **Text Extraction**
-   - All documents are processed concurrently into plain text files
-   - Uses a semaphore to limit concurrent processing
-   - Each document is converted into a clean text format
-   - Optimized for parallel processing with controlled concurrency
-
-2. **Text Merging**
-   - All extracted text files are merged into a single text file
-   - Maintains document separation and structure
-   - No LLM calls during this phase
-   - Very efficient memory usage
-
-3. **LLM Processing**
-   - The merged text file is processed by the LLM in a single operation
-   - LLM creates a well-structured, organized knowledge base
-   - Only one LLM call for the entire process
-   - Optimized for context window usage
-
-![image](https://github.com/user-attachments/assets/4ea6dbcd-7566-4e2f-aafa-07a22b3d1196)
-
-
-This approach provides several advantages:
-- Minimal LLM calls (just one for the entire process)
-- Better parallelization of text extraction
-- More predictable memory usage
-- Significantly faster overall processing time
-- Lower API costs due to reduced LLM usage
-
 ---
 
-## ⚡ Concurrency Model
+## API Reference
 
-The knowledge base builder implements a multi-layer concurrency model to maximize performance while maintaining stability:
+### `KBBuilder(config)`
 
-### 1. File Processing Concurrency
+Initialize a knowledge base builder with provider configuration.
+
+**Parameters:**
+- `config` (dict): Configuration dictionary. Required keys depend on provider:
+  - `GOOGLE_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` (at least one required)
+  - `{PROVIDER}_MODEL` (optional, string)
+  - `{PROVIDER}_TEMPERATURE` (optional, float 0.0-1.0, default 0.7)
+  - `{PROVIDER}_MAX_RETRIES` (optional, int, default 3)
+  - `{PROVIDER}_MAX_CONCURRENCY` (optional, int, default 8)
+  - `GITHUB_API_KEY` (optional, for higher GitHub rate limits)
+
+**Raises:** `ValueError` if no API key is provided.
+
+### `kbb.build(sources, output_file, **kwargs)`
+
+Build a knowledge base from the provided sources.
+
+**Parameters:**
+- `sources` (dict): Source specification with keys:
+  - `files` (list[str]): URLs or local paths to documents (auto-detected by extension)
+  - `sitemap_url` (str): URL of a sitemap.xml to crawl
+  - `github_repositories` (list[str]): GitHub repos as `"user/repo"` or full URLs
+  - `github_username` (str): Process all repos for a GitHub user
+- `output_file` (str): Output path (default: `"final_knowledge_base.md"`)
+- `output_format` (str): `"markdown"` (default) or `"llms_txt"` for [llmstxt.org](https://llmstxt.org) spec output
+- `project_name` (str, optional): Project name for the H1 heading in `llms_txt` mode
+- `on_progress` (callable, optional): Callback `(stage, current, total)`
+- `metadata` (bool): Write a `.meta.json` sidecar file (default `True`)
+- `incremental` (bool): Cache extracted text, skip unchanged sources on rebuild (default `False`)
+- `cache_dir` (str, optional): Cache directory (default `.kbb_cache`)
+
+**Returns:** The output file path.
+
 ```python
-# Multiple files processed simultaneously
-tasks = [process_file_async(file) for file in files]
-await asyncio.gather(*tasks)
+kbb.build(
+    sources=sources,
+    output_file="kb.md",
+    output_format="llms_txt",       # Generate llms.txt spec output
+    project_name="My Project",
+    incremental=True,                # Skip unchanged sources on rebuild
+    on_progress=lambda s, c, t: print(f"{s}: {c}/{t}"),
+)
 ```
-- Enables parallel processing of multiple files
-- Each file type (PDF, DOCX, web page, etc.) is processed independently
-- Significantly reduces total processing time for multiple files
 
-### 2. CPU-Bound Operations
+---
+
+## Architecture
+
+The pipeline has three phases:
+
+```
+Sources (PDF, HTML, GitHub, ...)
+    |
+    v
+[1] Text Extraction (concurrent, async)
+    - Each source type has a dedicated processor
+    - Downloads and extraction run in thread pools
+    - Semaphore limits concurrency (default: 8)
+    - Automatic retry with backoff on transient failures
+    - Duplicate URLs skipped
+    |
+    v
+[2] Text Merging
+    - Extracted texts joined with document separators
+    - Split into chunks at paragraph/sentence boundaries
+    - No LLM calls in this phase
+    |
+    v
+[3] LLM Summarization
+    - Each chunk processed by the configured LLM
+    - Structured prompt requests hierarchical Markdown with headings, bullets, and preserved details
+    - Retry with exponential backoff on API failures
+    - Sub-chunk fallback if a chunk fails
+    |
+    v
+Output: Structured Markdown knowledge base
+```
+
+---
+
+## `/llms.txt` Output Mode
+
+Generate output conforming to the [llmstxt.org](https://llmstxt.org) specification — a Markdown file designed to help LLMs understand and navigate your content.
+
 ```python
-# CPU-intensive operations run in separate threads
-path = await asyncio.to_thread(processor.download, url)
-text = await asyncio.to_thread(processor.extract_text, path)
+kbb.build(
+    sources=sources,
+    output_file="llms.txt",
+    output_format="llms_txt",
+    project_name="My Project",
+)
 ```
-- Downloads and text extraction run in separate threads
-- Prevents blocking the event loop during I/O operations
-- Optimizes CPU utilization across cores
 
-### 3. LLM Processing Concurrency
+This produces two files:
+- **`llms.txt`** — structured navigation file with H1 heading, blockquote summary, and H2 sections with linked resources
+- **`llms-full.txt`** — complete extracted text from all sources (pre-LLM processing)
+
+CLI: `knowledge-base-builder --output-format llms_txt --project-name "My Project" -o llms.txt`
+
+---
+
+## Metadata Sidecar
+
+Every build produces a `.meta.json` companion file with build provenance:
+
+```json
+{
+  "build_timestamp": "2026-03-21T16:30:00+00:00",
+  "llm_provider": "OpenAIClient",
+  "llm_model": "gpt-4o",
+  "sources_processed": [
+    {"url": "https://example.com/page", "source_type": "web", "word_count": 450, "success": true}
+  ],
+  "sources_failed": [],
+  "output": {"word_count": 320, "section_count": 5}
+}
+```
+
+This enables RAG attribution (tracking which source contributed which content) and build auditing. Suppress with `metadata=False` or `--no-metadata`.
+
+---
+
+## Incremental Builds
+
+For sources that don't change often, enable incremental mode to cache extracted text and skip re-processing unchanged sources:
+
 ```python
-# Controlled concurrent LLM API calls
-async with self._sem:
-    result = await self.llm_client.run_async(prompt)
+kbb.build(sources=sources, output_file="kb.md", incremental=True)
 ```
-- Uses a semaphore to limit concurrent LLM API calls
-- Prevents overwhelming the LLM API
-- Helps stay within API rate limits
-- Default concurrency limit: 8 simultaneous requests
 
-### 4. Final KB Merging
+The cache is stored in `.kbb_cache/` (configurable via `cache_dir`). On each build:
+1. Each source is downloaded and its content hashed (SHA-256)
+2. If the hash matches the cache, the cached extracted text is reused
+3. The LLM summarization step always re-runs (prompts may change)
+
+This is useful for scheduled rebuilds (e.g., keeping `/llms.txt` up to date) where most sources are unchanged between runs.
+
+CLI: `knowledge-base-builder --incremental --cache-dir .kbb_cache`
+
+---
+
+## Configuration Reference
+
+All configuration options can be passed via the `config` dictionary or as CLI arguments:
+
+| Config Key | CLI Flag | Default | Description |
+|------------|----------|---------|-------------|
+| `GOOGLE_API_KEY` | `--google-api-key` | - | Google Gemini API key |
+| `OPENAI_API_KEY` | `--openai-api-key` | - | OpenAI API key |
+| `ANTHROPIC_API_KEY` | `--anthropic-api-key` | - | Anthropic API key |
+| `{PROVIDER}_MODEL` | `--{provider}-model` | See table above | LLM model name |
+| `{PROVIDER}_TEMPERATURE` | `--{provider}-temperature` | `0.7` | Sampling temperature (0.0=deterministic, 1.0=creative) |
+| `{PROVIDER}_MAX_RETRIES` | - | `3` | Max retry attempts for LLM calls |
+| `{PROVIDER}_MAX_CONCURRENCY` | - | `8` | Max concurrent LLM requests |
+| `GITHUB_API_KEY` | `--github-api-key` | - | GitHub token for higher rate limits |
+
+---
+
+## Logging
+
+The package uses Python's `logging` module instead of print statements. Configure logging in your application:
+
 ```python
-# Concurrent preprocessing followed by single merge
-tasks = [preprocess_text_async(text) for text in texts]
-preprocessed_kbs = await asyncio.gather(*tasks)
-final_kb = await merge_all_kbs(preprocessed_kbs)
+import logging
+
+# See all pipeline activity
+logging.basicConfig(level=logging.INFO)
+
+# See detailed timing and debug info
+logging.basicConfig(level=logging.DEBUG)
+
+# Suppress library output
+logging.getLogger('knowledge_base_builder').setLevel(logging.WARNING)
 ```
-- Preprocesses all documents concurrently
-- Merges them into a final knowledge base
 
-### Performance Considerations
-- **Resource Management**: CPU-bound operations don't block the event loop
-- **Rate Limiting**: LLM API calls are properly throttled
-- **Scalability**: System can handle many files without performance degradation
-- **Constraints**:
-  - LLM concurrency limit (default: 8)
-  - System resources (CPU, memory, network)
-  - LLM API rate limits
+The CLI configures `INFO`-level logging by default.
 
 ---
 
-## ⚠️ Limitations
+## Applications
 
-### Memory Usage
-- **Document Processing**: Each document is loaded into memory during processing
-- **LLM Context Windows**: Different models have different context window limits:
-  - Gemini: 1M tokens
-- **Merge Operations**: Final merge operation requires all preprocessed KBs in memory
-- **Recommendation**: Monitor memory usage when processing large documents or many files
+### `/llms.txt` — Web-Crawlable LLM Context
+Generate a compact Markdown file that search-powered LLMs (Perplexity, ChatGPT, Gemini) can discover and reference when answering questions about you or your organization.
 
-### Processing Time
-- **I/O Operations**: Each file requires multiple I/O operations:
-  - Downloading/reading the file
-  - Text extraction
-- **LLM Latency**: Each document requires at least one LLM call:
-  - One call per document for preprocessing
-  - One final call for merging
+### RAG Preprocessing
+Produce clean, structured Markdown ready for embedding into vector stores (Pinecone, Chroma, Weaviate) or for use as direct LLM context within a single context window.
 
-### Rate Limits
-- **LLM API Limits**: Each provider has different rate limits
-- **GitHub API**: low when unauthenticated
-- **Web Scraping**: Some websites may block rapid requests
+### Multi-Source Summarization
+Consolidate a website (via sitemap), a PDF portfolio, and multiple GitHub repositories into one organized document.
+
+```python
+sources = {
+    'sitemap_url': "https://example.com/sitemap.xml",
+    'github_repositories': ["user/repo1", "user/repo2"],
+    'files': ["resume.pdf", "cover_letter.docx"],
+}
+```
 
 ---
 
-## 🧪 Future Improvements
+## Limitations
 
-### Data Sources Expansion
-- [ ] **Cloud Integration**: Add support for Google Drive, Dropbox, and OneDrive documents
-- [ ] **Social & Professional**: Add LinkedIn profiles, Twitter feeds, and Medium articles integration
-- [ ] **Academic Sources**: Connect to arXiv, Google Scholar, and research databases
-
-### Performance Optimizations
-- [ ] **Parallel Processing**: Improve multi-document processing with adaptive concurrency control
-- [ ] **Merge Algorithm**: Enhance the logarithmic-depth merge tree for better memory efficiency
-- [ ] **Streaming Processing**: Implement document streaming for reduced memory footprint
-
-### Output & Integration
-- [ ] **Vector DB Export**: Direct export to Pinecone, Chroma, Weaviate, and other vector databases
-- [ ] **LangChain Integration**: Simplified integration with LangChain for RAG applications
-- [ ] **Custom Schemas**: User-definable output schemas for specialized knowledge base formats
-
-### Advanced Features
-- [ ] **Incremental Updates**: Support for updating existing knowledge bases with new content
-- [ ] **Multi-language Support**: Process and merge content across different languages
-- [ ] **Custom Taxonomies**: Allow users to define custom categorization schemas for content organization
-
-### Performance & Limitations Improvements
-- **Memory Optimization**:
-  - [ ] Implement streaming document processing to reduce memory footprint
-  - [ ] Add chunking for documents exceeding context windows
-  - [ ] Develop smart caching system for processed documents
-  - [ ] Add memory usage monitoring and automatic batch sizing
-
-- **Processing Speed**:
-  - [ ] Implement progressive document loading
-  - [ ] Develop smart retry mechanisms for failed operations
-
-- **Rate Limit Management**:
-  - [ ] Add automatic rate limit detection and adaptation
-  - [ ] Implement smart queuing system for API calls
-  - [ ] Add support for multiple API keys rotation
-
+- **Output length saturation**: Because the final output is produced by a single LLM call per chunk, adding more sources beyond 4-5 increases compression rather than output length. For very large corpora, consider splitting into multiple builds.
+- **GitHub rate limits**: Without a `GITHUB_API_KEY`, the GitHub API allows only 60 requests/hour. The package logs warnings when rate limits are hit but continues with available data. Always provide a token for GitHub-heavy builds.
+- **Memory**: All extracted text is held in memory before LLM processing. For hundreds of large documents, monitor memory usage.
+- **LLM context windows**: Chunks exceeding the model's context window will fail. The default chunk size (80K characters / ~20K tokens) is safe for all supported models.
 
 ---
 
-## 🤝 Contributing
+## Development
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on how to get started.
+### Running Tests
 
-## 🐛 Bug Reports
+```bash
+pip install -e .
+pip install -r test-requirements.txt
+pytest --cov=knowledge_base_builder --cov-report=term-missing
+```
 
-Found a bug? Please check our [Contributing Guidelines](CONTRIBUTING.md#bug-reports) for instructions on how to report it.
+The test suite includes 131 tests with 94% code coverage. CI runs on Python 3.9, 3.10, and 3.11.
+
+### Project Structure
+
+```
+knowledge_base_builder/
+  __init__.py              # Package exports
+  kb_builder.py            # Main KBBuilder class and pipeline orchestration
+  llm.py                   # LLM prompt construction and KB merging
+  llm_client.py            # Abstract LLM client base class
+  gemini_client.py         # Google Gemini implementation
+  openai_client.py         # OpenAI implementation
+  anthropic_client.py      # Anthropic Claude implementation
+  base_processor.py        # Base class for file processors
+  pdf_processor.py         # PDF text extraction
+  document_processor.py    # DOCX, TXT, MD, RTF extraction
+  spreadsheet_processor.py # CSV, TSV, XLSX, ODS extraction
+  web_content_processor.py # HTML, XML, JSON, YAML extraction
+  website_processor.py     # Sitemap parsing and HTML crawling
+  github_processor.py      # GitHub API integration
+  build_metadata.py        # Build metadata and source tracking
+  cache.py                 # Incremental build cache
+  cli.py                   # Command-line interface
+  tests/                   # Test suite (131 tests, 94% coverage)
+paper/
+  paper.md                 # JOSS paper manuscript
+  paper.bib                # References
+experiments/               # Reproducible evaluation experiments
+```
 
 ---
 
-## 📄 License
+## Citing
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+If you use this package in your research, please cite:
 
-MIT © [Kostadin Devedzhiev](https://github.com/kostadindev)
+```bibtex
+@article{devedzhiev2026kbb,
+  title = {Knowledge Base Builder: A Python Package for Multi-Source Knowledge Base Construction with Large Language Models},
+  author = {Devedzhiev, Kostadin},
+  journal = {Journal of Open Source Software},
+  year = {2026}
+}
+```
+
+---
+
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines. This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
+
+- **Bug reports**: [Open an issue](https://github.com/kostadindev/knowledge-base-builder/issues/new?template=bug_report.md)
+- **Feature requests**: [Open an issue](https://github.com/kostadindev/knowledge-base-builder/issues/new?template=feature_request.md)
+- **Questions**: [Open a discussion](https://github.com/kostadindev/knowledge-base-builder/issues)
+
+---
+
+## License
+
+MIT License. See [LICENSE](LICENSE) for details.

@@ -53,6 +53,9 @@ setup(
         # New dependencies for web content processors
         "pyyaml>=6.0",          # For .yaml/.yml files
     ],
+    extras_require={
+        "markitdown": ["markitdown"],
+    },
     entry_points={
         "console_scripts": [
             "knowledge-base-builder=knowledge_base_builder.cli:main",

@@ -1,9 +1,12 @@
+import logging
 import asyncio
 import time
 from langchain_anthropic import ChatAnthropic
 from langchain.schema import HumanMessage
 
 from knowledge_base_builder.llm_client import LLMClient
+
+logger = logging.getLogger(__name__)
 
 class AnthropicClient(LLMClient):
     """Asynchronous client for Anthropic's Claude models via LangChain."""
@@ -33,14 +36,14 @@ class AnthropicClient(LLMClient):
                 async with self._sem:
                     result = await self.llm.ainvoke([HumanMessage(content=prompt)])
                     end_time = time.time()
-                    print(f"    ⏱️ Anthropic API call: {end_time - start_time:.2f} seconds")
+                    logger.debug(f" Anthropic API call: {end_time - start_time:.2f} seconds")
                     return result.content if hasattr(result, "content") else result
             except Exception as e:
                 if attempt == self.max_retries:
                     end_time = time.time()
-                    print(f"    ⏱️ Anthropic API call failed after {end_time - start_time:.2f} seconds and {attempt} attempts")
+                    logger.debug(f" Anthropic API call failed after {end_time - start_time:.2f} seconds and {attempt} attempts")
                     raise
                 # backoff: 2, 4, 8, ...
                 backoff_time = 2 ** attempt
-                print(f"    ⚠️ Anthropic API call attempt {attempt} failed, retrying in {backoff_time} seconds...")
+                logger.warning(f" Anthropic API call attempt {attempt} failed, retrying in {backoff_time} seconds...")
                 await asyncio.sleep(backoff_time) 

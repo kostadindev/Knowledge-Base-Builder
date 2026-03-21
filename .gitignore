@@ -186,3 +186,12 @@ final_knowledge_base.md
 knowledge_base.md
 
 test_files/
+
+# Temporary output/test files
+out.md.meta.json
+test_output.md
+test_run.py
+
+# Experiments and paper
+experiments/
+paper/

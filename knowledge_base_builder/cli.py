@@ -3,13 +3,22 @@
 import os
 import argparse
 import json
+import logging
 from dotenv import load_dotenv
 from knowledge_base_builder import KBBuilder
+
+logger = logging.getLogger(__name__)
 
 def main():
     """Main entry point for CLI."""
     # Load environment variables
     load_dotenv()
+
+    # Configure logging for CLI usage
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)s: %(message)s",
+    )
     
     # Parse command line arguments
     parser = argparse.ArgumentParser(
@@ -78,7 +87,22 @@ def main():
     # GitHub repositories
     parser.add_argument("--github-repo", "-g", action="append", default=[],
                       help="GitHub repositories to process (format: username/repo or https://github.com/username/repo)")
-    
+
+    # Output format
+    parser.add_argument("--output-format", default="markdown",
+                      choices=["markdown", "llms_txt"],
+                      help="Output format: 'markdown' (default) or 'llms_txt' for llmstxt.org spec")
+    parser.add_argument("--project-name",
+                      help="Project name for the H1 heading in llms_txt output mode")
+
+    # Metadata and caching
+    parser.add_argument("--no-metadata", action="store_true",
+                      help="Suppress .meta.json sidecar file generation")
+    parser.add_argument("--incremental", action="store_true",
+                      help="Enable incremental builds (cache extracted text, skip unchanged sources)")
+    parser.add_argument("--cache-dir",
+                      help="Directory for incremental build cache (default: .kbb_cache)")
+
     # Parse arguments
     args = parser.parse_args()
     
@@ -138,8 +162,16 @@ def main():
     kb_builder = KBBuilder(config)
     
     # Build and save knowledge base
-    output_path = kb_builder.build(sources, args.output)
-    print(f"Knowledge base built successfully: {output_path}")
+    output_path = kb_builder.build(
+        sources,
+        args.output,
+        output_format=args.output_format,
+        project_name=args.project_name,
+        metadata=not args.no_metadata,
+        incremental=args.incremental,
+        cache_dir=args.cache_dir,
+    )
+    logger.info("Knowledge base built successfully: %s", output_path)
 
 if __name__ == "__main__":
     main() 

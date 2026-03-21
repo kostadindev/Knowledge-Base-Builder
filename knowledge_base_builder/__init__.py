@@ -6,7 +6,7 @@ This package provides tools to build structured knowledge bases from various sou
 using multiple LLM providers including Google Gemini, OpenAI GPT-4o, and Anthropic Claude.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.2"
 
 from knowledge_base_builder.llm_client import LLMClient
 from knowledge_base_builder.gemini_client import GeminiClient
@@ -21,6 +21,8 @@ from knowledge_base_builder.spreadsheet_processor import SpreadsheetProcessor
 from knowledge_base_builder.web_content_processor import WebContentProcessor
 from knowledge_base_builder.website_processor import WebsiteProcessor
 from knowledge_base_builder.github_processor import GitHubProcessor
+from knowledge_base_builder.build_metadata import BuildMetadata, SourceResult
+from knowledge_base_builder.cache import BuildCache
 
 __all__ = [
     'LLMClient',
@@ -36,4 +38,7 @@ __all__ = [
     'WebContentProcessor',
     'WebsiteProcessor',
     'GitHubProcessor',
+    'BuildMetadata',
+    'SourceResult',
+    'BuildCache',
 ] 
