@@ -76,6 +76,7 @@ class KBBuilder:
         self.website_processor = WebsiteProcessor()
         self.github_processor = None
         self.text_contents: List[str] = []
+        self._text_sources: List[str] = []
 
     def _is_duplicate(self, url: str) -> bool:
         """Check if a URL has already been processed. Returns True if duplicate."""
@@ -96,7 +97,8 @@ class KBBuilder:
         metadata: bool = True,
         incremental: bool = False,
         cache_dir: Optional[str] = None,
-    ) -> str:
+        dry_run: bool = False,
+    ) -> Any:
         """Build a knowledge base from the provided sources.
 
         Args:
@@ -110,12 +112,17 @@ class KBBuilder:
             incremental: Reuse cached extractions for unchanged sources.
             cache_dir: Directory for incremental build cache
                 (default ``.kbb_cache``).
+            dry_run: If True, validate sources and API key without
+                processing. Returns a summary dict instead of a file path.
 
         Returns:
-            The *output_file* path.
+            The *output_file* path, or a summary dict when *dry_run* is True.
         """
         if output_format not in ("markdown", "llms_txt"):
             raise ValueError(f"output_format must be 'markdown' or 'llms_txt', got '{output_format}'")
+
+        if dry_run:
+            return self._dry_run(sources or {})
 
         total_start_time = time.time()
         logger.info("Starting Knowledge Base Builder pipeline...")
@@ -279,6 +286,98 @@ class KBBuilder:
             chunks.append(text[:split_at])
             text = text[split_at:]
         return chunks
+
+    # ------------------------------------------------------------------
+    # Dry-run helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _classify_source(url: str) -> str:
+        """Return a source-type string based on the URL's file extension.
+
+        Possible return values: ``"pdf"``, ``"document"``, ``"spreadsheet"``,
+        ``"web_content"``, or ``"web"``.
+        """
+        # Strip query string / fragment before checking extension
+        clean = url.split('?')[0].split('#')[0]
+        ext = os.path.splitext(clean)[1].lower()
+
+        if ext == '.pdf':
+            return "pdf"
+        if ext in ('.docx', '.txt', '.md', '.rtf'):
+            return "document"
+        if ext in ('.csv', '.tsv', '.xlsx', '.ods'):
+            return "spreadsheet"
+        if ext in ('.html', '.xml', '.json', '.yaml', '.yml'):
+            return "web_content"
+        return "web"
+
+    def _dry_run(self, sources: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate sources and API key without processing anything.
+
+        Returns a summary dict.
+        """
+        # Collect all URLs from every source key
+        all_urls: List[str] = []
+        for key in ('files', 'pdf_urls', 'document_urls', 'spreadsheet_urls',
+                     'web_content_urls', 'web_urls'):
+            all_urls.extend(sources.get(key) or [])
+
+        if sitemap := sources.get('sitemap_url'):
+            all_urls.append(sitemap)
+
+        for repo in sources.get('github_repositories') or []:
+            # Normalise to a browsable URL so the HEAD check is meaningful
+            if not repo.startswith(('http://', 'https://')):
+                all_urls.append(f"https://github.com/{repo}")
+            else:
+                all_urls.append(repo)
+
+        # Check accessibility concurrently via asyncio.to_thread
+        async def _check_all():
+            tasks = [
+                asyncio.to_thread(BaseProcessor.check_accessible, u)
+                for u in all_urls
+            ]
+            return await asyncio.gather(*tasks)
+
+        results = asyncio.get_event_loop().run_until_complete(_check_all())
+
+        accessible = 0
+        inaccessible = 0
+        inaccessible_sources: List[Dict[str, Any]] = []
+        sources_by_type: Dict[str, int] = {}
+
+        for url, (ok, status_code, error) in zip(all_urls, results):
+            stype = self._classify_source(url)
+            sources_by_type[stype] = sources_by_type.get(stype, 0) + 1
+            if ok:
+                accessible += 1
+            else:
+                inaccessible += 1
+                inaccessible_sources.append({
+                    "url": url,
+                    "status_code": status_code,
+                    "error": error,
+                })
+
+        # Validate API key with a minimal LLM call
+        api_key_valid = False
+        try:
+            self.llm_client.run("Respond with OK")
+            api_key_valid = True
+        except Exception:
+            pass
+
+        return {
+            "total_sources": len(all_urls),
+            "accessible": accessible,
+            "inaccessible": inaccessible,
+            "sources_by_type": sources_by_type,
+            "inaccessible_sources": inaccessible_sources,
+            "api_key_valid": api_key_valid,
+            "llm_provider": self.llm_client.__class__.__name__,
+        }
 
     def _process_legacy_sources(self, sources: Dict[str, Any]) -> None:
         """Process legacy source format for backward compatibility."""

@@ -103,6 +103,10 @@ def main():
     parser.add_argument("--cache-dir",
                       help="Directory for incremental build cache (default: .kbb_cache)")
 
+    # Dry-run mode
+    parser.add_argument("--dry-run", action="store_true",
+                      help="Validate sources and API key without processing; prints a JSON summary")
+
     # Parse arguments
     args = parser.parse_args()
     
@@ -162,7 +166,7 @@ def main():
     kb_builder = KBBuilder(config)
     
     # Build and save knowledge base
-    output_path = kb_builder.build(
+    result = kb_builder.build(
         sources,
         args.output,
         output_format=args.output_format,
@@ -170,8 +174,13 @@ def main():
         metadata=not args.no_metadata,
         incremental=args.incremental,
         cache_dir=args.cache_dir,
+        dry_run=args.dry_run,
     )
-    logger.info("Knowledge base built successfully: %s", output_path)
+
+    if args.dry_run:
+        print(json.dumps(result, indent=2))
+    else:
+        logger.info("Knowledge base built successfully: %s", result)
 
 if __name__ == "__main__":
     main() 

@@ -1,6 +1,16 @@
 # Knowledge Base Builder
 
-A Python package that transforms diverse content sources into structured Markdown knowledge bases using large language models. Ingest web pages, PDFs, spreadsheets, GitHub repositories, and sitemaps, then consolidate them into a single organized document.
+<p align="center">
+  <img src="https://kostadindev.github.io/images/kbb.svg" alt="Knowledge Base Builder" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://pypi.org/project/knowledge-base-builder/"><img src="https://img.shields.io/pypi/v/knowledge-base-builder" alt="PyPI"></a>
+  <a href="https://github.com/kostadindev/knowledge-base-builder/actions/workflows/tests.yml"><img src="https://github.com/kostadindev/knowledge-base-builder/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+</p>
+
+A Python package that transforms diverse content sources into structured Markdown knowledge bases using large language models. Ingest web pages, PDFs, spreadsheets, GitHub repositories, YouTube videos, arXiv papers, RSS feeds, Jupyter notebooks, PowerPoint presentations, and sitemaps — then consolidate them into a single organized document.
 
 Built to power:
 - Web-crawlable LLM context files (`/llms.txt`)
@@ -8,9 +18,7 @@ Built to power:
 - Vector database ingestion pipelines
 - Domain-specific chatbots and assistants
 
-[![PyPI](https://img.shields.io/pypi/v/knowledge-base-builder)](https://pypi.org/project/knowledge-base-builder/)
-[![Tests](https://github.com/kostadindev/knowledge-base-builder/actions/workflows/tests.yml/badge.svg)](https://github.com/kostadindev/knowledge-base-builder/actions/workflows/tests.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+> **[Read the full report with interactive visualizations](paper/report.html)**
 
 ---
 
@@ -64,12 +72,17 @@ sources = {
         "https://example.com/resume.pdf",
         "https://example.com/index.html",
         "path/to/local/document.docx",
+        "https://youtube.com/watch?v=dQw4w9WgXcQ",   # YouTube transcript
+        "https://arxiv.org/abs/2301.12345",            # arXiv paper
+        "path/to/notebook.ipynb",                      # Jupyter notebook
+        "path/to/slides.pptx",                         # PowerPoint
     ],
     'sitemap_url': "https://example.com/sitemap.xml",
     'github_repositories': [
         "username/repo",
         "https://github.com/username/another-repo",
     ],
+    'rss_urls': ["https://blog.example.com/feed"],     # RSS/Atom feeds
 }
 
 kbb = KBBuilder(config)
@@ -92,15 +105,20 @@ knowledge-base-builder \
 
 ## Supported Sources
 
-| Source Type | Description | Formats |
-|-------------|-------------|---------|
+| Source Type | Description | Formats / Detection |
+|-------------|-------------|---------------------|
 | Documents | Text documents | PDF, DOCX, TXT, MD, RTF |
 | Spreadsheets | Tabular data | CSV, TSV, XLSX, ODS |
 | Web Content | Structured web data | HTML, XML, JSON, YAML/YML |
 | Websites | Live web pages | Any URL or sitemap |
-| GitHub | Repository content | Markdown files from public repos |
+| GitHub | Repository markdown files | `user/repo` or GitHub URLs |
+| YouTube | Video transcripts | `youtube.com` / `youtu.be` URLs (auto-detected) |
+| arXiv | Research papers (PDF + metadata) | `arxiv.org` URLs or bare IDs like `2301.12345` |
+| RSS/Atom | Blog and news feeds | URLs with `/feed`, `/rss`, `.atom`; or `--rss` flag |
+| Jupyter | Notebooks (code + markdown + outputs) | `.ipynb` files |
+| PowerPoint | Presentation slides + speaker notes | `.pptx` files |
 
-All source types can be mixed in a single `build()` call. Duplicate URLs are automatically detected and skipped.
+All source types can be mixed in a single `build()` call. YouTube, arXiv, and RSS URLs are auto-detected by URL pattern. File-based sources (Jupyter, PPTX) are auto-detected by extension. Duplicate URLs are automatically skipped.
 
 ---
 
@@ -148,19 +166,23 @@ Build a knowledge base from the provided sources.
 
 **Parameters:**
 - `sources` (dict): Source specification with keys:
-  - `files` (list[str]): URLs or local paths to documents (auto-detected by extension)
+  - `files` (list[str]): URLs or local paths — auto-detected by extension or URL pattern. Supports PDF, DOCX, TXT, MD, RTF, CSV, XLSX, HTML, JSON, YAML, IPYNB, PPTX, YouTube URLs, arXiv URLs/IDs, and plain web URLs.
   - `sitemap_url` (str): URL of a sitemap.xml to crawl
   - `github_repositories` (list[str]): GitHub repos as `"user/repo"` or full URLs
   - `github_username` (str): Process all repos for a GitHub user
+  - `rss_urls` (list[str]): RSS/Atom feed URLs
 - `output_file` (str): Output path (default: `"final_knowledge_base.md"`)
-- `output_format` (str): `"markdown"` (default) or `"llms_txt"` for [llmstxt.org](https://llmstxt.org) spec output
+- `output_format` (str): `"markdown"` (default), `"llms_txt"`, or `"chunks"`
 - `project_name` (str, optional): Project name for the H1 heading in `llms_txt` mode
 - `on_progress` (callable, optional): Callback `(stage, current, total)`
 - `metadata` (bool): Write a `.meta.json` sidecar file (default `True`)
+- `validate` (bool): Run output quality checks, include results in metadata (default `False`)
 - `incremental` (bool): Cache extracted text, skip unchanged sources on rebuild (default `False`)
 - `cache_dir` (str, optional): Cache directory (default `.kbb_cache`)
+- `dry_run` (bool): Validate sources and API key without processing (default `False`)
+- `chunk_size` (int): Max characters per chunk in `"chunks"` mode (default `1000`)
 
-**Returns:** The output file path.
+**Returns:** The output file path, or a summary dict when `dry_run=True`.
 
 ```python
 kbb.build(
@@ -180,11 +202,11 @@ kbb.build(
 The pipeline has three phases:
 
 ```
-Sources (PDF, HTML, GitHub, ...)
+Sources (PDF, HTML, GitHub, YouTube, arXiv, RSS, Jupyter, PPTX, ...)
     |
     v
 [1] Text Extraction (concurrent, async)
-    - Each source type has a dedicated processor
+    - 11 specialized processors (auto-detected by URL pattern or file extension)
     - Downloads and extraction run in thread pools
     - Semaphore limits concurrency (default: 8)
     - Automatic retry with backoff on transient failures
@@ -270,6 +292,83 @@ CLI: `knowledge-base-builder --incremental --cache-dir .kbb_cache`
 
 ---
 
+## Chunked Output for Vector DBs
+
+Produce a JSON array of text chunks ready for direct ingestion into vector databases (Pinecone, Chroma, Weaviate). This mode skips LLM processing entirely — no API key costs.
+
+```python
+kbb.build(
+    sources=sources,
+    output_file="chunks.json",
+    output_format="chunks",
+    chunk_size=500,  # characters per chunk
+)
+```
+
+Output format:
+```json
+[
+  {"id": "chunk_0", "text": "...", "metadata": {"source": "https://example.com/doc.pdf", "section": "Introduction", "index": 0}},
+  {"id": "chunk_1", "text": "...", "metadata": {"source": "https://example.com/doc.pdf", "section": "Methods", "index": 1}}
+]
+```
+
+CLI: `knowledge-base-builder --output-format chunks --chunk-size 500 -o chunks.json`
+
+---
+
+## Output Quality Validation
+
+Run automated quality checks after building:
+
+```python
+kbb.build(sources=sources, output_file="kb.md", validate=True)
+```
+
+Checks include: non-empty output, Markdown heading structure, percentage of input sources that contributed content. Results are recorded in the `.meta.json` sidecar:
+
+```json
+{
+  "validation": {
+    "is_non_empty": true,
+    "has_headings": true,
+    "heading_count": 12,
+    "source_coverage_pct": 85.0,
+    "quality_score": 0.92
+  }
+}
+```
+
+CLI: `knowledge-base-builder --validate`
+
+---
+
+## Dry-Run Mode
+
+Validate your configuration and check source accessibility without processing anything:
+
+```python
+summary = kbb.build(sources=sources, dry_run=True)
+print(summary)
+# {"total_sources": 8, "accessible": 7, "inaccessible": 1, "api_key_valid": true, ...}
+```
+
+CLI: `knowledge-base-builder --dry-run --google-api-key $KEY -f url1 -f url2 -g user/repo`
+
+---
+
+## Enhanced Document Extraction (Optional)
+
+Install [MarkItDown](https://github.com/microsoft/markitdown) for higher-fidelity extraction of PDFs, DOCX, and XLSX files (preserves tables, code blocks, and formatting):
+
+```bash
+pip install knowledge-base-builder[markitdown]
+```
+
+When installed, MarkItDown is automatically used as the extraction backend. PyPDF/python-docx remain as fallbacks when MarkItDown is not installed.
+
+---
+
 ## Configuration Reference
 
 All configuration options can be passed via the `config` dictionary or as CLI arguments:
@@ -348,7 +447,7 @@ pip install -r test-requirements.txt
 pytest --cov=knowledge_base_builder --cov-report=term-missing
 ```
 
-The test suite includes 131 tests with 94% code coverage. CI runs on Python 3.9, 3.10, and 3.11.
+The test suite includes 260 tests with 95% code coverage. CI runs on Python 3.9, 3.10, and 3.11.
 
 ### Project Structure
 
@@ -368,13 +467,21 @@ knowledge_base_builder/
   web_content_processor.py # HTML, XML, JSON, YAML extraction
   website_processor.py     # Sitemap parsing and HTML crawling
   github_processor.py      # GitHub API integration
+  youtube_processor.py     # YouTube transcript extraction
+  rss_processor.py         # RSS/Atom feed parsing
+  jupyter_processor.py     # Jupyter notebook extraction
+  presentation_processor.py # PowerPoint slide extraction
+  arxiv_processor.py       # arXiv paper download + metadata
   build_metadata.py        # Build metadata and source tracking
   cache.py                 # Incremental build cache
+  chunker.py               # Text chunking for vector DB output
+  validator.py             # Output quality validation
   cli.py                   # Command-line interface
-  tests/                   # Test suite (131 tests, 94% coverage)
+  tests/                   # Test suite (260 tests, 95% coverage)
 paper/
   paper.md                 # JOSS paper manuscript
   paper.bib                # References
+  report.html              # Interactive report with experiment visualizations
 experiments/               # Reproducible evaluation experiments
 ```
 

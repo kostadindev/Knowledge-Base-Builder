@@ -48,6 +48,7 @@ class BuildMetadata:
         self.total_processing_time_seconds: float = 0.0
         self.output_word_count: int = 0
         self.output_section_count: int = 0
+        self.validation: Optional[dict] = None
 
     def add_source(self, result: SourceResult) -> None:
         self.sources.append(result)
@@ -61,7 +62,7 @@ class BuildMetadata:
     def to_dict(self) -> dict:
         processed = [s.to_dict() for s in self.sources if s.success]
         failed = [s.to_dict() for s in self.sources if not s.success]
-        return {
+        d = {
             "build_timestamp": self.build_timestamp,
             "llm_provider": self.llm_provider,
             "llm_model": self.llm_model,
@@ -76,6 +77,9 @@ class BuildMetadata:
                 "section_count": self.output_section_count,
             },
         }
+        if self.validation is not None:
+            d["validation"] = self.validation
+        return d
 
     def write_json(self, path: str) -> None:
         with open(path, "w", encoding="utf-8") as f:
