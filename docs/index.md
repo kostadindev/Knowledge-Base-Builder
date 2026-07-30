@@ -20,7 +20,7 @@ Point it at web pages, PDFs, GitHub repos, YouTube videos, arXiv papers, RSS fee
 ```python
 import knowledge_base_builder as kbb
 
-kbb.build("https://arxiv.org/abs/2301.12345", "octocat/Hello-World", "notes.pdf", out="kb.md")
+kbb.build("https://arxiv.org/abs/1706.03762", "octocat/Hello-World", "notes.pdf", out="kb.md")
 ```
 
 ```text title="Output — kb.md"

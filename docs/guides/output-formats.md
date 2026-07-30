@@ -43,7 +43,8 @@ Splits extracted text into chunks suitable for embedding into a vector database.
 call** — fast and free. Each chunk carries metadata.
 
 ```python
-kbb.build("docs/", out="chunks.json", output_format="chunks", chunk_size=1000)
+kbb.build("guide.pdf", "https://mysite.com/faq", out="chunks.json",
+          output_format="chunks", chunk_size=1000)
 ```
 
 ```json title="chunks.json"

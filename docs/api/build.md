@@ -85,7 +85,7 @@ kbb.classify_sources(["user/repo", "https://x.com/doc.pdf", "https://x.com/sitem
 kbb.build("https://mysite.com", out="llms.txt", output_format="llms_txt")
 
 # Explicit provider config
-kbb.build("docs/", out="kb.md", config={"OPENAI_API_KEY": "sk-...", "OPENAI_MODEL": "gpt-4o-mini"})
+kbb.build("guide.pdf", out="kb.md", config={"OPENAI_API_KEY": "sk-...", "OPENAI_MODEL": "gpt-4o-mini"})
 
 # Validate inputs without processing
 kbb.build("https://example.com/doc.pdf", dry_run=True)

@@ -32,9 +32,9 @@ Add a key when you want LLM-structured Markdown (the default). A free Gemini key
 ## Choose an output format
 
 ```python
-kbb.build("https://mysite.com", out="llms.txt", output_format="llms_txt")   # /llms.txt spec
-kbb.build("docs/", out="chunks.json", output_format="chunks")               # vector-DB JSON
-kbb.build("https://mysite.com", out="raw.md", output_format="raw")          # no LLM
+kbb.build("https://mysite.com", out="llms.txt", output_format="llms_txt")            # /llms.txt spec
+kbb.build("guide.pdf", "https://mysite.com/faq", out="chunks.json", output_format="chunks")  # vector-DB JSON
+kbb.build("https://mysite.com", out="raw.md", output_format="raw")                   # no LLM
 ```
 
 See [Output Formats](../guides/output-formats.md) for all four.

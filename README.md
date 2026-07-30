@@ -71,9 +71,9 @@ The core install is lean; heavier sources are opt-in extras
 ## Output formats
 
 ```python
-kbb.build("https://mysite.com", out="llms.txt", output_format="llms_txt")   # /llms.txt spec
-kbb.build("docs/",              out="chunks.json", output_format="chunks")   # vector-DB JSON
-kbb.build("https://mysite.com", out="raw.md",   output_format="raw")         # no LLM / no key
+kbb.build("https://mysite.com", out="llms.txt", output_format="llms_txt")        # /llms.txt spec
+kbb.build("guide.pdf", "https://mysite.com/faq", out="chunks.json", output_format="chunks")  # vector-DB JSON
+kbb.build("https://mysite.com", out="raw.md", output_format="raw")               # no LLM / no key
 ```
 
 ## CLI

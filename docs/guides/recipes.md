@@ -21,7 +21,7 @@ Serve the result at `https://mysite.com/llms.txt`. See [Generate /llms.txt](llms
 
 ## A RAG corpus (vector-DB chunks)
 
-Turn a folder of documents into embed-ready JSON chunks — no LLM, no API key.
+Turn a set of documents into embed-ready JSON chunks — no LLM, no API key.
 
 ```python
 import knowledge_base_builder as kbb
