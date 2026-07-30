@@ -145,6 +145,10 @@ venv.bak/
 
 # mkdocs documentation
 /site
+/_site
+
+# Claude Code local project config
+.claude/
 
 # mypy
 .mypy_cache/

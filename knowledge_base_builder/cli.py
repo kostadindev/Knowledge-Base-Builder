@@ -88,12 +88,18 @@ def main():
     parser.add_argument("--github-repo", "-g", action="append", default=[],
                       help="GitHub repositories to process (format: username/repo or https://github.com/username/repo)")
 
+    # RSS feeds
+    parser.add_argument("--rss", action="append", default=[],
+                      help="RSS/Atom feed URLs to extract articles from")
+
     # Output format
     parser.add_argument("--output-format", default="markdown",
-                      choices=["markdown", "llms_txt"],
-                      help="Output format: 'markdown' (default) or 'llms_txt' for llmstxt.org spec")
+                      choices=["markdown", "llms_txt", "chunks", "raw"],
+                      help="Output format: 'markdown' (default), 'llms_txt' for llmstxt.org spec, 'chunks' for vector-DB JSON, or 'raw' for extracted text with no LLM (needs no API key)")
     parser.add_argument("--project-name",
                       help="Project name for the H1 heading in llms_txt output mode")
+    parser.add_argument("--chunk-size", type=int, default=1000,
+                      help="Maximum characters per chunk when output_format is 'chunks' (default: 1000)")
 
     # Metadata and caching
     parser.add_argument("--no-metadata", action="store_true",
@@ -106,6 +112,10 @@ def main():
     # Dry-run mode
     parser.add_argument("--dry-run", action="store_true",
                       help="Validate sources and API key without processing; prints a JSON summary")
+
+    # Output quality validation
+    parser.add_argument("--validate", action="store_true",
+                      help="Run output quality validation and include results in metadata")
 
     # Parse arguments
     args = parser.parse_args()
@@ -135,13 +145,17 @@ def main():
         'GITHUB_API_KEY': args.github_api_key or os.environ.get('GITHUB_API_KEY', ''),
     }
     
-    # Validate required API keys based on selected provider
-    if args.llm_provider == 'gemini' and not config['GOOGLE_API_KEY']:
-        parser.error("Google API Key is required when using Gemini. Provide via --google-api-key or GOOGLE_API_KEY environment variable.")
-    elif args.llm_provider == 'openai' and not config['OPENAI_API_KEY']:
-        parser.error("OpenAI API Key is required when using OpenAI. Provide via --openai-api-key or OPENAI_API_KEY environment variable.")
-    elif args.llm_provider == 'anthropic' and not config['ANTHROPIC_API_KEY']:
-        parser.error("Anthropic API Key is required when using Claude. Provide via --anthropic-api-key or ANTHROPIC_API_KEY environment variable.")
+    # 'raw' output needs no LLM at all; 'chunks' is produced without an LLM call.
+    needs_llm = args.output_format in ("markdown", "llms_txt")
+
+    # Validate required API keys based on selected provider (only when an LLM is needed)
+    if needs_llm:
+        if args.llm_provider == 'gemini' and not config['GOOGLE_API_KEY']:
+            parser.error("Google API Key is required when using Gemini. Provide via --google-api-key or GOOGLE_API_KEY environment variable.")
+        elif args.llm_provider == 'openai' and not config['OPENAI_API_KEY']:
+            parser.error("OpenAI API Key is required when using OpenAI. Provide via --openai-api-key or OPENAI_API_KEY environment variable.")
+        elif args.llm_provider == 'anthropic' and not config['ANTHROPIC_API_KEY']:
+            parser.error("Anthropic API Key is required when using Claude. Provide via --anthropic-api-key or ANTHROPIC_API_KEY environment variable.")
     
     # Build sources dictionary for the knowledge base
     sources = {
@@ -160,10 +174,13 @@ def main():
         
         # GitHub repositories
         'github_repositories': args.github_repo,
+
+        # RSS feeds
+        'rss_urls': args.rss,
     }
     
-    # Initialize KB Builder
-    kb_builder = KBBuilder(config)
+    # Initialize KB Builder (tolerate a missing key when no LLM is required)
+    kb_builder = KBBuilder(config, allow_no_llm=not needs_llm)
     
     # Build and save knowledge base
     result = kb_builder.build(
@@ -175,6 +192,8 @@ def main():
         incremental=args.incremental,
         cache_dir=args.cache_dir,
         dry_run=args.dry_run,
+        chunk_size=args.chunk_size,
+        validate=args.validate,
     )
 
     if args.dry_run:

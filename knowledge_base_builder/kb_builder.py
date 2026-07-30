@@ -6,11 +6,14 @@ import urllib.parse
 import re
 import time
 import logging
+import difflib
 
 from knowledge_base_builder.llm_client import LLMClient
 from knowledge_base_builder.build_metadata import BuildMetadata, SourceResult
 from knowledge_base_builder.cache import BuildCache
 from knowledge_base_builder.base_processor import BaseProcessor
+from knowledge_base_builder.validator import OutputValidator
+from knowledge_base_builder.async_utils import run_sync
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +27,40 @@ from knowledge_base_builder.spreadsheet_processor import SpreadsheetProcessor
 from knowledge_base_builder.web_content_processor import WebContentProcessor
 from knowledge_base_builder.website_processor import WebsiteProcessor
 from knowledge_base_builder.github_processor import GitHubProcessor
+from knowledge_base_builder.youtube_processor import YouTubeProcessor
+from knowledge_base_builder.rss_processor import RSSProcessor
+from knowledge_base_builder.jupyter_processor import JupyterProcessor
+from knowledge_base_builder.presentation_processor import PresentationProcessor
+from knowledge_base_builder.arxiv_processor import ArxivProcessor
 
 class KBBuilder:
     """Main application class for building knowledge bases from various sources."""
-    def __init__(self, config: Dict[str, Any]):
+
+    # Recognized ``sources`` dict keys, split by expected value type. Used to
+    # give transparent feedback on mistyped keys or wrong value types.
+    _LIST_SOURCE_KEYS = frozenset({
+        'files', 'github_repositories', 'rss_urls',
+        'pdf_urls', 'document_urls', 'spreadsheet_urls',
+        'web_content_urls', 'web_urls',
+    })
+    _STR_SOURCE_KEYS = frozenset({'sitemap_url', 'github_username'})
+    _KNOWN_SOURCE_KEYS = _LIST_SOURCE_KEYS | _STR_SOURCE_KEYS
+
+    def __init__(self, config: Dict[str, Any], allow_no_llm: bool = False):
+        """Create a builder.
+
+        Args:
+            config: Configuration dict. Must contain at least one of
+                ``GOOGLE_API_KEY``, ``OPENAI_API_KEY``, or ``ANTHROPIC_API_KEY``
+                unless *allow_no_llm* is True.
+            allow_no_llm: When True, a missing API key is tolerated instead of
+                raising; the builder can then only produce ``output_format="raw"``
+                output (extracted text with no LLM structuring).
+        """
         self.config = config
         self._seen_urls: set = set()  # For deduplication
+        self.llm_client = None
+        self.llm = None
 
         # Initialize the appropriate LLM client based on available API keys
         # Try providers in order: Gemini > OpenAI > Anthropic
@@ -60,13 +91,19 @@ class KBBuilder:
                 max_concurrency=int(config.get('ANTHROPIC_MAX_CONCURRENCY', 8)),
             )
             logger.info("Using Anthropic as LLM provider")
+        elif allow_no_llm:
+            logger.warning(
+                "No LLM API key found; running in no-LLM mode. Only "
+                "output_format='raw' is available."
+            )
         else:
             raise ValueError(
                 "No LLM API key found in config. Please provide at least one of: "
                 "GOOGLE_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY"
             )
 
-        self.llm = LLM(self.llm_client)
+        if self.llm_client is not None:
+            self.llm = LLM(self.llm_client)
 
         # Initialize processors
         self.pdf_processor = PDFProcessor()
@@ -75,8 +112,100 @@ class KBBuilder:
         self.web_content_processor = WebContentProcessor()
         self.website_processor = WebsiteProcessor()
         self.github_processor = None
+        self.youtube_processor = YouTubeProcessor()
+        self.rss_processor = RSSProcessor()
+        self.jupyter_processor = JupyterProcessor()
+        self.presentation_processor = PresentationProcessor()
+        self.arxiv_processor = ArxivProcessor()
         self.text_contents: List[str] = []
         self._text_sources: List[str] = []
+
+    def _validate_sources(self, sources: Dict[str, Any]) -> None:
+        """Validate the *sources* argument and surface likely input mistakes.
+
+        Raises ``TypeError`` for the wrong container/value types (with a fix in
+        the message) and logs a warning for unrecognized keys (usually typos),
+        suggesting the closest valid key.
+        """
+        if not isinstance(sources, dict):
+            raise TypeError(
+                "sources must be a dict of source-type keys to values, e.g. "
+                "{'files': ['https://example.com/doc.pdf']}. Got "
+                f"{type(sources).__name__}. For a quick one-shot call, use the "
+                "top-level helper: knowledge_base_builder.build('https://...', out='kb.md')."
+            )
+
+        for key, value in sources.items():
+            if key not in self._KNOWN_SOURCE_KEYS:
+                match = difflib.get_close_matches(key, self._KNOWN_SOURCE_KEYS, n=1)
+                hint = f" Did you mean '{match[0]}'?" if match else ""
+                logger.warning(
+                    "Ignoring unrecognized sources key %r.%s Valid keys: %s",
+                    key, hint, ", ".join(sorted(self._KNOWN_SOURCE_KEYS)),
+                )
+                continue
+
+            if value is None:
+                continue
+
+            if key in self._LIST_SOURCE_KEYS:
+                if isinstance(value, str):
+                    raise TypeError(
+                        f"sources['{key}'] must be a list of strings, but got a "
+                        f"single string. Wrap it in a list: "
+                        f"{{'{key}': [{value!r}]}}."
+                    )
+                if not isinstance(value, (list, tuple)):
+                    raise TypeError(
+                        f"sources['{key}'] must be a list of strings, got "
+                        f"{type(value).__name__}."
+                    )
+                bad = next((v for v in value if not isinstance(v, str)), None)
+                if bad is not None:
+                    raise TypeError(
+                        f"sources['{key}'] must contain only strings; found "
+                        f"{type(bad).__name__}: {bad!r}."
+                    )
+            else:  # single-string keys
+                if not isinstance(value, str):
+                    raise TypeError(
+                        f"sources['{key}'] must be a single string (a URL or name), "
+                        f"got {type(value).__name__}."
+                    )
+
+    def _warn_no_content(self) -> None:
+        """Emit an actionable warning when no source produced any text."""
+        attempted = self._build_meta.sources
+        if not attempted:
+            logger.warning(
+                "No content collected: no sources were provided (or all keys were "
+                "unrecognized). Provide e.g. sources={'files': ['https://...']}, or "
+                "run with dry_run=True to validate your inputs."
+            )
+        else:
+            logger.warning(
+                "No content collected: all %d source(s) failed or were empty (see the "
+                "failures listed above). Check that URLs/paths are reachable and that the "
+                "required extras are installed (e.g. [spreadsheets], [youtube]).",
+                len(attempted),
+            )
+
+    def _log_build_summary(self) -> None:
+        """Log a human-readable summary of per-source extraction results."""
+        results = self._build_meta.sources
+        if not results:
+            return
+        succeeded = [s for s in results if s.success]
+        failed = [s for s in results if not s.success]
+        logger.info(
+            "Source summary: %d of %d succeeded, %d failed.",
+            len(succeeded), len(results), len(failed),
+        )
+        for s in failed:
+            logger.warning(
+                "  Failed [%s] %s -> %s",
+                s.source_type, s.url, s.error_message or "unknown error",
+            )
 
     def _is_duplicate(self, url: str) -> bool:
         """Check if a URL has already been processed. Returns True if duplicate."""
@@ -98,6 +227,8 @@ class KBBuilder:
         incremental: bool = False,
         cache_dir: Optional[str] = None,
         dry_run: bool = False,
+        chunk_size: int = 1000,
+        validate: bool = False,
     ) -> Any:
         """Build a knowledge base from the provided sources.
 
@@ -105,8 +236,10 @@ class KBBuilder:
             sources: Dictionary of source URLs/paths grouped by type.
             output_file: Path to write the final knowledge base.
             on_progress: Optional callback ``(stage, current, total)``.
-            output_format: ``"markdown"`` (default) or ``"llms_txt"`` for
-                llmstxt.org spec-compliant output.
+            output_format: ``"markdown"`` (default), ``"llms_txt"`` for
+                llmstxt.org spec-compliant output, ``"chunks"`` for
+                vector-DB-ready JSON chunks, or ``"raw"`` for the extracted
+                text with no LLM structuring (works without an API key).
             project_name: Project name for the H1 heading (llms_txt mode).
             metadata: Write a ``.meta.json`` sidecar file (default True).
             incremental: Reuse cached extractions for unchanged sources.
@@ -114,27 +247,48 @@ class KBBuilder:
                 (default ``.kbb_cache``).
             dry_run: If True, validate sources and API key without
                 processing. Returns a summary dict instead of a file path.
+            chunk_size: Maximum number of characters per chunk when
+                *output_format* is ``"chunks"`` (default 1000).
+            validate: Run output quality validation and include results
+                in the metadata sidecar (default False).
 
         Returns:
             The *output_file* path, or a summary dict when *dry_run* is True.
         """
-        if output_format not in ("markdown", "llms_txt"):
-            raise ValueError(f"output_format must be 'markdown' or 'llms_txt', got '{output_format}'")
+        if output_format not in ("markdown", "llms_txt", "chunks", "raw"):
+            raise ValueError(
+                "output_format must be 'markdown', 'llms_txt', 'chunks', or "
+                f"'raw', got '{output_format}'"
+            )
+
+        # No LLM configured: fall back to raw extraction (no structuring).
+        if self.llm_client is None and output_format in ("markdown", "llms_txt"):
+            logger.warning(
+                "No LLM client configured; falling back to output_format='raw'."
+            )
+            output_format = "raw"
+
+        # Normalize and validate the sources argument up front so mistyped keys
+        # or wrong value types fail loudly instead of silently doing nothing.
+        sources = sources or {}
+        self._validate_sources(sources)
 
         if dry_run:
-            return self._dry_run(sources or {})
+            return self._dry_run(sources)
 
         total_start_time = time.time()
         logger.info("Starting Knowledge Base Builder pipeline...")
         self.text_contents = []
+        self._text_sources = []
         self._seen_urls = set()
-        sources = sources or {}
 
         # Metadata tracking
         self._build_meta = BuildMetadata(
-            llm_provider=self.llm_client.__class__.__name__,
-            llm_model=str(getattr(self.llm_client, 'model', 'unknown')),
-            llm_temperature=float(getattr(self.llm_client, 'temperature', 0.7)),
+            llm_provider=(
+                self.llm_client.__class__.__name__ if self.llm_client else "none"
+            ),
+            llm_model=str(getattr(self.llm_client, 'model', 'none')),
+            llm_temperature=float(getattr(self.llm_client, 'temperature', 0.0)),
         )
 
         # Incremental cache
@@ -149,9 +303,7 @@ class KBBuilder:
         # --- unified file sources ---
         if files := sources.get('files', []):
             files_start = time.time()
-            asyncio.get_event_loop().run_until_complete(
-                self.process_files_async(files, _progress)
-            )
+            run_sync(self.process_files_async(files, _progress))
             logger.info("Files processing completed in %.2fs", time.time() - files_start)
         else:
             logger.info("No files provided for processing")
@@ -185,9 +337,36 @@ class KBBuilder:
         if self._cache:
             self._cache.save_manifest()
 
+        # Transparent per-source outcome report
+        self._log_build_summary()
+
+        # --- Chunked output (vector DB mode) ---
+        if output_format == "chunks":
+            import json as _json
+            from knowledge_base_builder.chunker import Chunker
+
+            if not self.text_contents:
+                self._warn_no_content()
+                with open(output_file, "w", encoding="utf-8") as f:
+                    _json.dump([], f, indent=2)
+            else:
+                chunker = Chunker(chunk_size=chunk_size)
+                pairs = list(zip(self.text_contents, self._text_sources))
+                result_chunks = chunker.chunk_texts(pairs)
+                with open(output_file, "w", encoding="utf-8") as f:
+                    _json.dump(result_chunks, f, indent=2)
+                logger.info("Wrote %d chunks to: %s", len(result_chunks), output_file)
+
+            total_elapsed = time.time() - total_start_time
+            if metadata:
+                self._build_meta.total_processing_time_seconds = total_elapsed
+                self._build_meta.write_json(output_file + ".meta.json")
+            logger.info("Total processing time: %.2fs", total_elapsed)
+            return output_file
+
         # --- LLM processing ---
         if not self.text_contents:
-            logger.warning("No content collected from any source.")
+            self._warn_no_content()
             if metadata:
                 self._build_meta.total_processing_time_seconds = time.time() - total_start_time
                 self._build_meta.write_json(output_file + ".meta.json")
@@ -196,12 +375,25 @@ class KBBuilder:
         # Save raw text for llms-full.txt before LLM processing
         raw_combined_text = "\n\n---\n\n".join(self.text_contents)
 
+        # --- Raw output (no LLM structuring) ---
+        if output_format == "raw":
+            with open(output_file, "w", encoding="utf-8") as f:
+                f.write(raw_combined_text)
+            logger.info("Raw KB written to: %s", output_file)
+            total_elapsed = time.time() - total_start_time
+            if metadata:
+                self._build_meta.total_processing_time_seconds = total_elapsed
+                self._build_meta.compute_output_stats(raw_combined_text)
+                self._build_meta.write_json(output_file + ".meta.json")
+            logger.info("Total processing time: %.2fs", total_elapsed)
+            return output_file
+
         logger.info("Processing all collected content through LLM...")
         _progress("llm", 0, 1)
         llm_start = time.time()
 
-        chunk_size = 20000 * 4  # ~20K tokens
-        chunks = self._split_text(raw_combined_text, chunk_size)
+        llm_chunk_size = 20000 * 4  # ~20K tokens
+        chunks = self._split_text(raw_combined_text, llm_chunk_size)
 
         logger.info("Processing %d chunk(s) of text...", len(chunks))
         processed_chunks = []
@@ -218,19 +410,15 @@ class KBBuilder:
             logger.info("  Processing chunk %d/%d...", i, len(chunks))
             _progress("llm", i, len(chunks))
             try:
-                processed = asyncio.get_event_loop().run_until_complete(
-                    _process_chunk(chunk)
-                )
+                processed = run_sync(_process_chunk(chunk))
                 processed_chunks.append(processed)
             except Exception as e:
                 logger.error("Error processing chunk %d: %s", i, e)
-                sub_size = chunk_size // 2
+                sub_size = llm_chunk_size // 2
                 sub_chunks = self._split_text(chunk, sub_size)
                 for j, sub in enumerate(sub_chunks, 1):
                     try:
-                        processed = asyncio.get_event_loop().run_until_complete(
-                            _process_chunk(sub)
-                        )
+                        processed = run_sync(_process_chunk(sub))
                         processed_chunks.append(processed)
                     except Exception as sub_e:
                         logger.error("Error processing sub-chunk %d of chunk %d: %s", j, i, sub_e)
@@ -252,6 +440,17 @@ class KBBuilder:
             with open(full_path, "w", encoding="utf-8") as f:
                 f.write(raw_combined_text)
             logger.info("Full text written to: %s", full_path)
+
+        # --- Output quality validation ---
+        if validate:
+            validator = OutputValidator()
+            validation_result = validator.validate(
+                processed_content, self._build_meta.sources
+            )
+            logger.info(
+                "Output quality score: %.2f", validation_result.quality_score
+            )
+            self._build_meta.validation = validation_result.to_dict()
 
         # --- Metadata sidecar ---
         total_elapsed = time.time() - total_start_time
@@ -293,12 +492,16 @@ class KBBuilder:
 
     @staticmethod
     def _classify_source(url: str) -> str:
-        """Return a source-type string based on the URL's file extension.
+        """Return a source-type string based on URL pattern or file extension."""
+        # URL-pattern-based checks first
+        if YouTubeProcessor.is_youtube_url(url):
+            return "youtube"
+        if ArxivProcessor.is_arxiv_url(url):
+            return "arxiv"
+        if RSSProcessor.is_rss_url(url):
+            return "rss"
 
-        Possible return values: ``"pdf"``, ``"document"``, ``"spreadsheet"``,
-        ``"web_content"``, or ``"web"``.
-        """
-        # Strip query string / fragment before checking extension
+        # Extension-based checks
         clean = url.split('?')[0].split('#')[0]
         ext = os.path.splitext(clean)[1].lower()
 
@@ -310,6 +513,12 @@ class KBBuilder:
             return "spreadsheet"
         if ext in ('.html', '.xml', '.json', '.yaml', '.yml'):
             return "web_content"
+        if ext == '.ipynb':
+            return "jupyter"
+        if ext == '.pptx':
+            return "presentation"
+        if ext in ('.rss', '.atom'):
+            return "rss"
         return "web"
 
     def _dry_run(self, sources: Dict[str, Any]) -> Dict[str, Any]:
@@ -320,7 +529,7 @@ class KBBuilder:
         # Collect all URLs from every source key
         all_urls: List[str] = []
         for key in ('files', 'pdf_urls', 'document_urls', 'spreadsheet_urls',
-                     'web_content_urls', 'web_urls'):
+                     'web_content_urls', 'web_urls', 'rss_urls'):
             all_urls.extend(sources.get(key) or [])
 
         if sitemap := sources.get('sitemap_url'):
@@ -341,7 +550,7 @@ class KBBuilder:
             ]
             return await asyncio.gather(*tasks)
 
-        results = asyncio.get_event_loop().run_until_complete(_check_all())
+        results = run_sync(_check_all())
 
         accessible = 0
         inaccessible = 0
@@ -387,6 +596,7 @@ class KBBuilder:
             ('spreadsheet_urls', 'spreadsheets', self.process_spreadsheets),
             ('web_content_urls', 'web content files', self.process_web_content),
             ('web_urls', 'web pages', self.process_web_urls),
+            ('rss_urls', 'RSS feeds', self.process_rss_feeds),
         ]:
             urls = sources.get(key, [])
             if urls:
@@ -419,17 +629,23 @@ class KBBuilder:
                         # For Unix-like systems
                         url = f"file://{urllib.parse.quote(local_path)}"
                     
-                # Determine if this is a web URL or file path
-                if url.startswith(('http://', 'https://')) and not any(url.lower().endswith(ext) for ext in 
-                                                                   ['.pdf', '.docx', '.txt', '.md', '.rtf', 
+                # URL-pattern-based routing (before extension check)
+                if YouTubeProcessor.is_youtube_url(url):
+                    tasks.append(self._process_youtube_async(url))
+                elif ArxivProcessor.is_arxiv_url(url):
+                    tasks.append(self._process_arxiv_async(url))
+                elif RSSProcessor.is_rss_url(url):
+                    tasks.append(self._process_rss_async(url))
+                # Extension-based routing
+                elif url.startswith(('http://', 'https://')) and not any(url.lower().endswith(ext) for ext in
+                                                                   ['.pdf', '.docx', '.txt', '.md', '.rtf',
                                                                     '.csv', '.tsv', '.xlsx', '.ods',
-                                                                    '.html', '.xml', '.json', '.yaml', '.yml']):
-                    # Handle as a web URL
+                                                                    '.html', '.xml', '.json', '.yaml', '.yml',
+                                                                    '.ipynb', '.pptx', '.rss', '.atom']):
                     tasks.append(self._process_web_url_async(url))
                 else:
-                    # Handle based on file extension
                     file_ext = os.path.splitext(url)[1].lower()
-                    
+
                     if file_ext == '.pdf':
                         tasks.append(self._process_pdf_async(url))
                     elif file_ext in ['.docx', '.txt', '.md', '.rtf']:
@@ -438,8 +654,13 @@ class KBBuilder:
                         tasks.append(self._process_spreadsheet_async(url))
                     elif file_ext in ['.html', '.xml', '.json', '.yaml', '.yml']:
                         tasks.append(self._process_web_content_async(url))
+                    elif file_ext == '.ipynb':
+                        tasks.append(self._process_jupyter_async(url))
+                    elif file_ext == '.pptx':
+                        tasks.append(self._process_presentation_async(url))
+                    elif file_ext in ['.rss', '.atom']:
+                        tasks.append(self._process_rss_async(url))
                     else:
-                        # Try to process as a web URL if extension is unknown
                         tasks.append(self._process_web_url_async(url))
             except Exception as e:
                 logger.error("Error processing file: %s - %s", url, e)
@@ -473,6 +694,7 @@ class KBBuilder:
                     result.success = True
                     if cached.strip():
                         self.text_contents.append(cached)
+                        self._text_sources.append(url)
                     result.extraction_time_seconds = time.time() - start_time
                     self._build_meta.add_source(result)
                     return
@@ -484,6 +706,7 @@ class KBBuilder:
 
             if text.strip():
                 self.text_contents.append(text)
+                self._text_sources.append(url)
 
             result.word_count = len(text.split())
             result.success = True
@@ -515,6 +738,7 @@ class KBBuilder:
             text = await asyncio.to_thread(self.website_processor.download_and_clean_html, url)
             if text.strip():
                 self.text_contents.append(text)
+                self._text_sources.append(url)
             result.word_count = len(text.split())
             result.success = True
         except Exception as e:
@@ -523,6 +747,21 @@ class KBBuilder:
         finally:
             result.extraction_time_seconds = time.time() - start_time
             self._build_meta.add_source(result)
+
+    async def _process_youtube_async(self, url: str) -> None:
+        await self._process_with_processor_async(url, self.youtube_processor, "youtube")
+
+    async def _process_rss_async(self, url: str) -> None:
+        await self._process_with_processor_async(url, self.rss_processor, "rss")
+
+    async def _process_jupyter_async(self, url: str) -> None:
+        await self._process_with_processor_async(url, self.jupyter_processor, "jupyter")
+
+    async def _process_presentation_async(self, url: str) -> None:
+        await self._process_with_processor_async(url, self.presentation_processor, "presentation")
+
+    async def _process_arxiv_async(self, url: str) -> None:
+        await self._process_with_processor_async(url, self.arxiv_processor, "arxiv")
 
     def process_pdfs(self, pdf_urls: List[str]) -> None:
         """Process and build knowledge bases from PDFs."""
@@ -563,6 +802,17 @@ class KBBuilder:
                 self._process_web_url(url)
             except Exception as e:
                 logger.error("Website error: %s", e)
+
+    def process_rss_feeds(self, rss_urls: List[str]) -> None:
+        """Process and extract content from RSS/Atom feeds."""
+        for url in rss_urls:
+            try:
+                text = self.rss_processor.extract_text(url)
+                if text.strip():
+                    self.text_contents.append(text)
+                    self._text_sources.append(url)
+            except Exception as e:
+                logger.error("RSS feed error: %s", e)
 
     def _process_web_url(self, url: str) -> None:
         """Process a web URL synchronously."""

@@ -1,0 +1,78 @@
+/* Matte teal theme */
+:root,
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #1f6f8b;
+  --md-primary-fg-color--light: #2d8aa8;
+  --md-primary-fg-color--dark: #17566c;
+  --md-accent-fg-color: #2d8aa8;
+  --md-accent-fg-color--transparent: rgba(31, 111, 139, 0.1);
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #2d8aa8;
+  --md-primary-fg-color--light: #46a3c0;
+  --md-primary-fg-color--dark: #1f6f8b;
+  --md-accent-fg-color: #46a3c0;
+  --md-accent-fg-color--transparent: rgba(45, 138, 168, 0.1);
+}
+
+/* Hero section */
+.md-typeset .hero {
+  margin: 0 0 2rem;
+}
+
+.md-typeset .hero h1 {
+  font-weight: 700;
+  font-size: 2.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.md-typeset .hero .hero-tagline {
+  font-size: 1.25rem;
+  color: var(--md-default-fg-color--light);
+  margin-bottom: 1.5rem;
+}
+
+/* Feature grid */
+.md-typeset .grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.md-typeset .grid .card {
+  padding: 1.25rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 8px;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.md-typeset .grid .card:hover {
+  border-color: var(--md-primary-fg-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.md-typeset .grid .card h3 {
+  margin-top: 0;
+  font-size: 1rem;
+}
+
+.md-typeset .grid .card p {
+  font-size: 0.85rem;
+  color: var(--md-default-fg-color--light);
+  margin-bottom: 0;
+}
+
+/* Parameter lists */
+.md-typeset .param-list dt {
+  font-weight: 600;
+  font-family: var(--md-code-font-family);
+  font-size: 0.85rem;
+  margin-top: 0.75rem;
+}
+
+.md-typeset .param-list dd {
+  margin-left: 1.5rem;
+  margin-bottom: 0.5rem;
+}

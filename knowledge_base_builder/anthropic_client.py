@@ -1,12 +1,19 @@
 import logging
 import asyncio
 import time
-from langchain_anthropic import ChatAnthropic
 from langchain.schema import HumanMessage
 
 from knowledge_base_builder.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
+
+# Optional dependency -- installed via the ``[anthropic]`` extra.
+try:
+    from langchain_anthropic import ChatAnthropic
+    _ANTHROPIC_AVAILABLE = True
+except ImportError:
+    ChatAnthropic = None
+    _ANTHROPIC_AVAILABLE = False
 
 class AnthropicClient(LLMClient):
     """Asynchronous client for Anthropic's Claude models via LangChain."""
@@ -19,6 +26,11 @@ class AnthropicClient(LLMClient):
         max_concurrency: int = 8,
     ):
         super().__init__(api_key, model, temperature, max_retries, max_concurrency)
+        if not _ANTHROPIC_AVAILABLE:
+            raise ImportError(
+                "langchain-anthropic is required to use the Anthropic provider. "
+                "Install with: pip install 'knowledge-base-builder[anthropic]'"
+            )
         self.llm = ChatAnthropic(
             model=model,
             temperature=temperature,

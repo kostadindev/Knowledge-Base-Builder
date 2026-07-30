@@ -6,7 +6,8 @@ This package provides tools to build structured knowledge bases from various sou
 using multiple LLM providers including Google Gemini, OpenAI GPT-4o, and Anthropic Claude.
 """
 
-__version__ = "0.1.2"
+# Single source of truth for the package version (setup.py reads this).
+__version__ = "0.2.0"
 
 from knowledge_base_builder.llm_client import LLMClient
 from knowledge_base_builder.gemini_client import GeminiClient
@@ -23,8 +24,19 @@ from knowledge_base_builder.website_processor import WebsiteProcessor
 from knowledge_base_builder.github_processor import GitHubProcessor
 from knowledge_base_builder.build_metadata import BuildMetadata, SourceResult
 from knowledge_base_builder.cache import BuildCache
+from knowledge_base_builder.validator import OutputValidator, ValidationResult
+from knowledge_base_builder.chunker import Chunker
+from knowledge_base_builder.youtube_processor import YouTubeProcessor
+from knowledge_base_builder.rss_processor import RSSProcessor
+from knowledge_base_builder.jupyter_processor import JupyterProcessor
+from knowledge_base_builder.presentation_processor import PresentationProcessor
+from knowledge_base_builder.arxiv_processor import ArxivProcessor
+from knowledge_base_builder.api import build, config_from_env, classify_sources
 
 __all__ = [
+    'build',
+    'config_from_env',
+    'classify_sources',
     'LLMClient',
     'GeminiClient',
     'OpenAIClient',
@@ -41,4 +53,12 @@ __all__ = [
     'BuildMetadata',
     'SourceResult',
     'BuildCache',
+    'OutputValidator',
+    'ValidationResult',
+    'Chunker',
+    'YouTubeProcessor',
+    'RSSProcessor',
+    'JupyterProcessor',
+    'PresentationProcessor',
+    'ArxivProcessor',
 ] 

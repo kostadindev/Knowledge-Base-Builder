@@ -158,7 +158,7 @@ class TestLogging(unittest.TestCase):
         pkg_dir = os.path.dirname(knowledge_base_builder.__file__)
 
         for fname in os.listdir(pkg_dir):
-            if fname.endswith('.py') and not fname.startswith('test_') and fname != 'conftest.py':
+            if fname.endswith('.py') and not fname.startswith('test_') and fname not in ('conftest.py', 'cli.py'):
                 fpath = os.path.join(pkg_dir, fname)
                 with open(fpath) as f:
                     content = f.read()

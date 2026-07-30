@@ -5,6 +5,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.schema import HumanMessage
 
 from knowledge_base_builder.llm_client import LLMClient
+from knowledge_base_builder.async_utils import run_sync
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,7 @@ class GeminiClient(LLMClient):
     # Keep a synchronous alias if you still need it elsewhere
     def run(self, prompt: str) -> str:
         start_time = time.time()
-        result = asyncio.get_event_loop().run_until_complete(self.run_async(prompt))
+        result = run_sync(self.run_async(prompt))
         end_time = time.time()
         logger.debug(f" Gemini API call (sync): {end_time - start_time:.2f} seconds")
         return result.content if hasattr(result, "content") else result

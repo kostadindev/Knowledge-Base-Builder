@@ -1,12 +1,19 @@
 import logging
 import asyncio
 import time
-from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage
 
 from knowledge_base_builder.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
+
+# Optional dependency -- installed via the ``[openai]`` extra.
+try:
+    from langchain_openai import ChatOpenAI
+    _OPENAI_AVAILABLE = True
+except ImportError:
+    ChatOpenAI = None
+    _OPENAI_AVAILABLE = False
 
 class OpenAIClient(LLMClient):
     """Asynchronous client for OpenAI's models via LangChain."""
@@ -19,6 +26,11 @@ class OpenAIClient(LLMClient):
         max_concurrency: int = 8,
     ):
         super().__init__(api_key, model, temperature, max_retries, max_concurrency)
+        if not _OPENAI_AVAILABLE:
+            raise ImportError(
+                "langchain-openai is required to use the OpenAI provider. "
+                "Install with: pip install 'knowledge-base-builder[openai]'"
+            )
         self.llm = ChatOpenAI(
             model=model,
             temperature=temperature,

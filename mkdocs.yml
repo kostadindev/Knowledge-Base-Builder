@@ -1,0 +1,96 @@
+site_name: Knowledge Base Builder
+site_url: https://kostadindev.github.io/knowledge-base-builder
+site_description: Turn any source — web pages, PDFs, GitHub repos, YouTube, arXiv, RSS — into one structured Markdown knowledge base with an LLM. Built for RAG, /llms.txt, and chatbots.
+site_author: Kostadin Devedzhiev
+repo_url: https://github.com/kostadindev/knowledge-base-builder
+repo_name: kostadindev/knowledge-base-builder
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/kostadindev/knowledge-base-builder
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/knowledge-base-builder/
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quickstart: getting-started/quickstart.md
+    - Core Concepts: getting-started/concepts.md
+  - Guides:
+    - Sources: guides/sources.md
+    - Output Formats: guides/output-formats.md
+    - Generate /llms.txt: guides/llms-txt.md
+    - Recipes: guides/recipes.md
+  - How It Works:
+    - The Pipeline: how-it-works/pipeline.md
+  - API Reference:
+    - build(): api/build.md
+    - KBBuilder: api/kbbuilder.md
+    - CLI: api/cli.md

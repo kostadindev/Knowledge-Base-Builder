@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any
 import time
 
+from knowledge_base_builder.async_utils import run_sync
+
 logger = logging.getLogger(__name__)
 
 class LLMClient(ABC):
@@ -31,7 +33,7 @@ class LLMClient(ABC):
     def run(self, prompt: str) -> str:
         """Synchronous wrapper for run_async."""
         start_time = time.time()
-        result = asyncio.get_event_loop().run_until_complete(self.run_async(prompt))
+        result = run_sync(self.run_async(prompt))
         end_time = time.time()
         logger.debug(f"{self.__class__.__name__} API call (sync): {end_time - start_time:.2f} seconds")
         return result 

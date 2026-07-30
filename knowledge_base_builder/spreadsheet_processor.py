@@ -1,21 +1,52 @@
+from __future__ import annotations
+
 import os
 import logging
 import requests
 import tempfile
 import urllib.parse
-import pandas as pd
 import re
-import ezodf
 from io import StringIO
 from knowledge_base_builder.base_processor import BaseProcessor
 
 logger = logging.getLogger(__name__)
+
+# Optional heavy dependencies -- installed via the ``[spreadsheets]`` extra.
+try:
+    import pandas as pd
+    _PANDAS_AVAILABLE = True
+except ImportError:
+    pd = None
+    _PANDAS_AVAILABLE = False
+
+try:
+    import ezodf
+    _EZODF_AVAILABLE = True
+except ImportError:
+    ezodf = None
+    _EZODF_AVAILABLE = False
 
 try:
     from markitdown import MarkItDown
     _MARKITDOWN_AVAILABLE = True
 except ImportError:
     _MARKITDOWN_AVAILABLE = False
+
+
+def _require_pandas() -> None:
+    if not _PANDAS_AVAILABLE:
+        raise ImportError(
+            "pandas is required for spreadsheet processing. Install with: "
+            "pip install 'knowledge-base-builder[spreadsheets]'"
+        )
+
+
+def _require_ezodf() -> None:
+    if not _EZODF_AVAILABLE:
+        raise ImportError(
+            "ezodf is required to read .ods spreadsheets. Install with: "
+            "pip install 'knowledge-base-builder[spreadsheets]'"
+        )
 
 class SpreadsheetProcessor(BaseProcessor):
     """Handle spreadsheet processing for .csv, .tsv, .xlsx, and .ods files."""
@@ -30,6 +61,7 @@ class SpreadsheetProcessor(BaseProcessor):
     @staticmethod
     def extract_text(file_path: str) -> str:
         """Extract text from a spreadsheet file based on its extension."""
+        _require_pandas()
         file_ext = os.path.splitext(file_path)[1].lower()
 
         if file_ext == '.csv':
@@ -96,6 +128,7 @@ class SpreadsheetProcessor(BaseProcessor):
     @staticmethod
     def _extract_from_ods(file_path: str) -> str:
         """Extract text from a .ods file."""
+        _require_ezodf()
         try:
             doc = ezodf.opendoc(file_path)
             results = []
