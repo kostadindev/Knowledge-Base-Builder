@@ -49,6 +49,8 @@ kbb.build("https://example.com", out="kb.md")   # zero configuration
 - [Sources](https://kostadindev.github.io/knowledge-base-builder/guides/sources/) · [Output Formats](https://kostadindev.github.io/knowledge-base-builder/guides/output-formats/) · [Generate `/llms.txt`](https://kostadindev.github.io/knowledge-base-builder/guides/llms-txt/)
 - [API Reference](https://kostadindev.github.io/knowledge-base-builder/api/build/)
 
+The docs are machine-readable too (dogfooding this very tool): 📄 [llms.txt](https://kostadindev.github.io/knowledge-base-builder/llms.txt) · [llms-full.txt](https://kostadindev.github.io/knowledge-base-builder/llms-full.txt) — all docs as clean Markdown from one URL.
+
 ## Supported sources
 
 | Source | Formats / detection |

@@ -4,6 +4,10 @@ site_description: Turn any source — web pages, PDFs, GitHub repos, YouTube, ar
 site_author: Kostadin Devedzhiev
 repo_url: https://github.com/kostadindev/knowledge-base-builder
 repo_name: kostadindev/knowledge-base-builder
+copyright: >
+  Docs as Markdown for LLMs:
+  <a href="https://kostadindev.github.io/knowledge-base-builder/llms.txt">llms.txt</a> ·
+  <a href="https://kostadindev.github.io/knowledge-base-builder/llms-full.txt">llms-full.txt</a>
 
 theme:
   name: material

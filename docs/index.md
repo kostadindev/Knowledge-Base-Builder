@@ -119,3 +119,8 @@ Fold a résumé, a GitHub profile, talks, and papers into one portable Markdown 
 - **[Quickstart](getting-started/quickstart.md)** — the one-liner, raw mode, and full control
 - **[Core Concepts](getting-started/concepts.md)** — sources, processors, providers, output formats
 - **[The Pipeline](how-it-works/pipeline.md)** — how extraction and structuring actually work
+
+!!! abstract "Reading this as an LLM?"
+    These docs eat their own dog food. Grab everything as clean Markdown from one URL:
+    📄 **[llms.txt](https://kostadindev.github.io/knowledge-base-builder/llms.txt)** (curated index) ·
+    **[llms-full.txt](https://kostadindev.github.io/knowledge-base-builder/llms-full.txt)** (full content).
