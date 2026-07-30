@@ -1,19 +1,19 @@
-/* Matte teal theme */
+/* Matte orange theme */
 :root,
 [data-md-color-scheme="default"] {
-  --md-primary-fg-color: #1f6f8b;
-  --md-primary-fg-color--light: #2d8aa8;
-  --md-primary-fg-color--dark: #17566c;
-  --md-accent-fg-color: #2d8aa8;
-  --md-accent-fg-color--transparent: rgba(31, 111, 139, 0.1);
+  --md-primary-fg-color: #c45e2c;
+  --md-primary-fg-color--light: #d4764a;
+  --md-primary-fg-color--dark: #a34d22;
+  --md-accent-fg-color: #d4764a;
+  --md-accent-fg-color--transparent: rgba(196, 94, 44, 0.1);
 }
 
 [data-md-color-scheme="slate"] {
-  --md-primary-fg-color: #2d8aa8;
-  --md-primary-fg-color--light: #46a3c0;
-  --md-primary-fg-color--dark: #1f6f8b;
-  --md-accent-fg-color: #46a3c0;
-  --md-accent-fg-color--transparent: rgba(45, 138, 168, 0.1);
+  --md-primary-fg-color: #d4764a;
+  --md-primary-fg-color--light: #e08a60;
+  --md-primary-fg-color--dark: #c45e2c;
+  --md-accent-fg-color: #e08a60;
+  --md-accent-fg-color--transparent: rgba(212, 118, 74, 0.1);
 }
 
 /* Hero section */
