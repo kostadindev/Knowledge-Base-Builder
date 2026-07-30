@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://kostadindev.github.io/knowledge-base-builder/sitemap.xml

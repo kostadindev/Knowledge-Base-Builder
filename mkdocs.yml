@@ -69,6 +69,30 @@ markdown_extensions:
 
 plugins:
   - search
+  - llmstxt:
+      markdown_description: >-
+        Knowledge Base Builder turns web pages, PDFs, GitHub repos, YouTube
+        videos, arXiv papers, RSS feeds, notebooks, and slides into one
+        structured Markdown knowledge base with an LLM. Built for RAG, /llms.txt,
+        vector-DB ingestion, and chatbots.
+      full_output: llms-full.txt
+      sections:
+        Getting Started:
+          - index.md: Overview, highlights, and supported sources.
+          - getting-started/installation.md: Core install and optional extras.
+          - getting-started/quickstart.md: One-liner, raw mode, full control, and CLI.
+          - getting-started/concepts.md: Sources, processors, providers, output formats.
+        Guides:
+          - guides/sources.md: Every supported source type and how routing works.
+          - guides/output-formats.md: markdown, llms_txt, chunks, and raw.
+          - guides/llms-txt.md: Generate a /llms.txt for your own site.
+          - guides/recipes.md: Copy-paste recipes for common jobs.
+        How It Works:
+          - how-it-works/pipeline.md: Extraction, merge, and LLM structuring.
+        API Reference:
+          - api/build.md: The one-line build() convenience API.
+          - api/kbbuilder.md: The KBBuilder class and build() parameters.
+          - api/cli.md: Command-line interface reference.
 
 extra:
   social:
