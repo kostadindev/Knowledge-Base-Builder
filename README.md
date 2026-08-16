@@ -84,18 +84,6 @@ kbb.build("https://mysite.com", out="raw.md", output_format="raw")              
 knowledge-base-builder -f https://example.com/resume.pdf -g username/repo -o kb.md
 ```
 
-## Citing
-
-If you use this package in your research, please cite:
-
-```bibtex
-@article{devedzhiev2026kbb,
-  title = {Knowledge Base Builder: A Python Package for Multi-Source Knowledge Base Construction with Large Language Models},
-  author = {Devedzhiev, Kostadin},
-  journal = {Journal of Open Source Software},
-  year = {2026}
-}
-```
 
 ## Contributing
 
